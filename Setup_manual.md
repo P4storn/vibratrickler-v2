@@ -1,5 +1,5 @@
 # Install OS
-1. Install Raspberry OS Lite on SD card. Configure user Pi, Wifi and SSH. _Raspberry Pi Imager is highly recommended - use Ctrl-Shift-X to open Settings._
+1. Install Raspberry OS Lite on SD card. Configure user Pi, Wifi and SSH. _[Raspberry Pi Imager](https://downloads.raspberrypi.org/imager/imager_latest.exe) is highly recommended - use Ctrl-Shift-X to open Settings._
 1. Boot RPi. Find IP adress, on screen or DHCP server.
 1. ssh pi@192.168.0.27 (replace with your IP). _To reset fingerprint for SSH: `ssh-keygen -R 192.168.0.27`_
 
