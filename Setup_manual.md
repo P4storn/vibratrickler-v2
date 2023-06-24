@@ -1,17 +1,20 @@
 # About this document
 - I try to consistently use physical pin numbers on the RPi - i.e. how your would count them on the board.
+- You are expected to be able to install, update and upgrade an RPi yourself. If not, there are tons of how-tos on the interwebz.
+- I do my stuff on a Windows PC.If your'e using Linux or Mac, some commands may differ.
+- My RPi has IP 192.168.0.27. Please replace any occurances with yours.
 
-# Install OS
+# Install and update OS
 1. Install Raspberry OS Lite on SD card. Configure user Pi, Wifi and SSH. _[Raspberry Pi Imager](https://downloads.raspberrypi.org/imager/imager_latest.exe) is highly recommended - use Ctrl-Shift-X to open Settings._
 1. Boot RPi. Find IP adress, on screen or DHCP server.
 1. ssh pi@192.168.0.27 (replace with your IP). _To reset fingerprint for SSH: `ssh-keygen -R 192.168.0.27`_
-
-All actions below are on/in the pi.
-
+    - You should now be logged in to your RPi.
+1. `sudo apt-get update` _Update APT_
+1. `sudo apt-get upgrade` _Upgrade Linux_
 1. `sudo raspi-config` > System > Network at boot > No _Speeds up boot._
 
 # WiringPi and safe shutdown button
-_You don't NEED a physical power-button for your RPi, but you might go crazy without it._ Creds to @drogon for this library! Lots more info at http://wiringpi.com/. 
+_You don't NEED a physical power-button for your RPi, but you might go crazy without it. Plus you should get to know WiringPi asap anyways._ Creds to @drogon for this library! Lots more info at http://wiringpi.com/. 
 1. Install WiringPi (for GPIO):
     - `wget https://project-downloads.drogon.net/wiringpi-latest.deb`
     - `sudo dpkg -i wiringpi-latest.deb`
@@ -54,7 +57,6 @@ Green/white wire from wheatstone bridge load cell beam will depend on type and h
 
 # Import and test HX711 A/D conversion
 Creds to Gandalf15 for the Hx711 library at https://github.com/gandalf15/HX711. More examplesfrom him [here](https://github.com/gandalf15/HX711/blob/master/python_examples/all_methods_example.py)
-1. `sudo apt-get update` _Refresh Git hooks_
 1. `sudo apt-get install git -y` _Install Git_
 1. `pip3 install 'git+https://github.com/gandalf15/HX711.git#egg=HX711&subdirectory=HX711_Python3'` _Pip-install from Gandalf15's Git_
 1. `python3` _Open a Python3 console_
@@ -109,3 +111,31 @@ Based on https://nodered.org/docs/getting-started/raspberrypi, including some tw
 1. Autostart Node-red on next boot: `sudo systemctl enable nodered.service`
     - _Note: The parameter `--max-old-space-size=256` seems to be default for running as a service, at least after RPi install script._
 1. Reboot RPi (using the fancy safe-shutdown-button).
+
+
+# If high SSH latency, try...
+1. `sudo nano /etc/ssh/sshd_config`. Uncomment and set the parameters below:
+    - `UseDNS` no
+    - `ClientAliveInterval` 3
+    - `ClientAliveCountMax` 10
+1. `sudo reboot` _This will of course close your current connection._
+
+# Set up an SMB share to share files with Windows machine
+Not a prereq, but it will help a lot if your'e on a headless RPi0 (like me). Using SMB, we can transfer files and even edit them as a workspace in Visual Studio or other editors.
+1. Install Samba with `sudo apt-get install samba samba-common-bin -y` 
+1. Share /home/pi directory: Run `sudo nano /etc/samba/smb.conf` > Then add at the bottom:
+    ```text
+    [home_pi]
+    path = /home/pi
+    browseable=Yes
+    read only=no
+    writeable=Yes
+    create mask=0777
+    directory mask=0777
+    public=no
+    only guests=no
+    ```
+1. Create an _SMB_ password for user pi: `sudo smbpasswd -a pi` 
+1. `sudo systemctl restart smbd.service`
+1. Note output of command `hostname`
+1. In Windows: `explorer.exe` > browse to `\\192.168.0.27`. When prompted, sign on using `hostname\pi`.
