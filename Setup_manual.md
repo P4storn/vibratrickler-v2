@@ -11,7 +11,7 @@ All actions below are on/in the pi.
 1. `sudo raspi-config` > System > Network at boot > No _Speeds up boot._
 
 # WiringPi and safe shutdown button
-Creds to @drogon for this library! Lots more info at http://wiringpi.com/
+_You don't NEED a physical power-button for your RPi, but you might go crazy without it._ Creds to @drogon for this library! Lots more info at http://wiringpi.com/. 
 1. Install WiringPi (for GPIO):
     - `wget https://project-downloads.drogon.net/wiringpi-latest.deb`
     - `sudo dpkg -i wiringpi-latest.deb`
@@ -20,11 +20,11 @@ Creds to @drogon for this library! Lots more info at http://wiringpi.com/
     - Attach button: Pin 5 --> N/O push-button > GND.
     - `sudo nano /usr/local/bin/safeshutdown.sh` > Insert:
         ```bash
-            #!/bin/bash
-            #GPIO3 = Pin5. When Pi=Off: Shorting to GND --> On. This script: Shorting to ground --> Off.
-            gpio -g mode 3 up #Pull-up
-            gpio -g wfi 3 falling #Wait-for-edge (w/o looping)
-            sudo poweroff
+        #!/bin/bash
+        #GPIO3 = Pin5. When Pi=Off: Shorting to GND --> On. This script: Shorting to ground --> Off.
+        gpio -g mode 3 up #Pull-up
+        gpio -g wfi 3 falling #Wait-for-edge (w/o looping)
+        sudo poweroff
         ```
     - `sudo chmod a+x /usr/local/bin/safeshutdown.sh`
     - `sudo nano /etc/rc.local` > Insert before "exit 0": 
@@ -67,19 +67,19 @@ Creds to Gandalf15 for the Hx711 library at https://github.com/gandalf15/HX711. 
     - `hx.get_data_mean(5)` _Try getting some data! (5) will retreive 5 readings and return their average. If 4 readings fail - this will throw 'statistics.StatisticsError'._
     - Next, run a loop to get a bit closer to brass tacks:
         ```python
-            while True:
-                hx.get_data_mean(1)
+        while True:
+            hx.get_data_mean(1)
         ```
     - Or log a lot of readings to a csv-readable file:
         ```python
-            from datetime import datetime
-            file = open("hx711.txt", "a")
-            while True:
-                timestring = datetime.now().strftime('%H:%M:%S')
-                hxstring = hx.get_data_mean(1)
-                outstring =  str(timestring) + ',' + str(hxstring) + '\n'
-                file.write(outstring)
-                print(outstring)
+        from datetime import datetime
+        file = open("hx711.txt", "a")
+        while True:
+            timestring = datetime.now().strftime('%H:%M:%S')
+            hxstring = hx.get_data_mean(1)
+            outstring =  str(timestring) + ',' + str(hxstring) + '\n'
+            file.write(outstring)
+            print(outstring)
         ```
 1. Always do `file.close()` after playing with files!
 1. Always do `gpio.cleanup()` after playing with GPIO-pins!
@@ -93,8 +93,8 @@ I'm using a 20g load cell (itsy, bitsy teeny weeny!) and about 45% of readings f
 Based on https://nodered.org/docs/getting-started/raspberrypi, including some tweaks...
 1. Download and install:
     ```bash
-        curl https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered --output noderedinstaller.sh
-        bash noderedinstaller.sh --confirm-pi --allow-low-ports --confirm-install
+    curl https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered --output noderedinstaller.sh
+    bash noderedinstaller.sh --confirm-pi --allow-low-ports --confirm-install
     ```
 1. _Be patient. Especially over SSH - connection might drop while install is actually going just fine._
 1. Answer No to "customize settings now". 
