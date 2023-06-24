@@ -1,3 +1,6 @@
+# About this document
+- I try to consistently use physical pin numbers on the RPi - i.e. how your would count them on the board.
+
 # Install OS
 1. Install Raspberry OS Lite on SD card. Configure user Pi, Wifi and SSH. _[Raspberry Pi Imager](https://downloads.raspberrypi.org/imager/imager_latest.exe) is highly recommended - use Ctrl-Shift-X to open Settings._
 1. Boot RPi. Find IP adress, on screen or DHCP server.
@@ -8,6 +11,7 @@ All actions below are on/in the pi.
 1. `sudo raspi-config` > System > Network at boot > No _Speeds up boot._
 
 # WiringPi and safe shutdown button
+Creds to @drogon for this library! Lots more info at http://wiringpi.com/
 1. Install WiringPi (for GPIO):
     - `wget https://project-downloads.drogon.net/wiringpi-latest.deb`
     - `sudo dpkg -i wiringpi-latest.deb`
@@ -35,8 +39,58 @@ All actions below are on/in the pi.
     - `gpio -g mode 18 pwm` _Default pwm is Dynamic mode,  0...1024._
     - `gpio -g pwm 18 500 && sleep 1 && gpio -g pwm 18 0` _Run for 1s at about 50% Duty Cycle._
 
+# Connect scale (Load cell + Hx711)
+Green/white wire from wheatstone bridge load cell beam will depend on type and how you mount it. The colors might also be completely different, but +/- should at least always be Red/Black. If you get negative values from Hx711: Mount your load cell 'upside down' or change green/white connections to Hx711. RPi GPIO-pins could be almost any, but below are the ones I know work.
+1. Connect wheatstone type load cell to HX711 board,
+    - Red wire --> Hx711:E+ _Excitement current +_
+    - Black wire --> Hx711:E- _Excitement current -_
+    - Green wire --> Hx711:A+ _Channel A +_
+    - White wire --> Hx711:A- _Channel A -_
+1. Connect Hx711 to RPi,
+    - GND --> breadboard ground
+    - DT --> RPi pin 29
+    - SCK --> RPi pin 31
+    - VCC --> breadboard 5V
+
+# Import and test HX711 A/D conversion
+Creds to Gandalf15 for the Hx711 library at https://github.com/gandalf15/HX711. More examplesfrom him [here](https://github.com/gandalf15/HX711/blob/master/python_examples/all_methods_example.py)
+1. `sudo apt-get update` _Refresh Git hooks_
+1. `sudo apt-get install git -y` _Install Git_
+1. `pip3 install 'git+https://github.com/gandalf15/HX711.git#egg=HX711&subdirectory=HX711_Python3'` _Pip-install from Gandalf15's Git_
+1. `python3` _Open a Python3 console_
+    - `import RPi.GPIO as gpio`
+    - `from hx711 import HX711`
+    - `gpio.setmode(gpio.BOARD)` _Use physical board pin numbers. Hint/try: `gpio readall` for a full conversion table_
+    - `hx = HX711(dout_pin=29, pd_sck_pin=31)`  _Create an hx711 object using the pins you connected before. Default settings include Channel=A and Gain=128/max, which suits this project just fine._
+    - `hx.reset()` _False if OK (sic!). Hx711 board is working._
+    - `hx.zero(30)` _False if OK (sic!). Take the mean of 50 readings and use this as 0/floor - "Tare" on a kitchen scale._
+    - `hx.get_data_mean(5)` _Try getting some data! (5) will retreive 5 readings and return their average. If 4 readings fail - this will throw 'statistics.StatisticsError'._
+    - Next, run a loop to get a bit closer to brass tacks:
+        ```python
+            while True:
+                hx.get_data_mean(1)
+        ```
+    - Or log a lot of readings to a csv-readable file:
+        ```python
+            from datetime import datetime
+            file = open("hx711.txt", "a")
+            while True:
+                timestring = datetime.now().strftime('%H:%M:%S')
+                hxstring = hx.get_data_mean(1)
+                outstring =  str(timestring) + ',' + str(hxstring) + '\n'
+                file.write(outstring)
+                print(outstring)
+        ```
+1. Always do `file.close()` after playing with files!
+1. Always do `gpio.cleanup()` after playing with GPIO-pins!
+
+Hint: Save the readings log file to Windows PC, over SSH, from RPi: Windows CMD.exe > `scp pi@192.168.0.27:~/hx711.txt .\hx711.txt`
+
+## What output to expect? 
+I'm using a 20g load cell (itsy, bitsy teeny weeny!) and about 45% of readings from the hx.get_data_mean(1) loop above is useful. Each grain on the scale gives approx 1950 increase in Hx711 output.
+
 # Install Node-JS server and Node-Red
-_Based on https://nodered.org/docs/getting-started/raspberrypi, including tweaks..._
+Based on https://nodered.org/docs/getting-started/raspberrypi, including some tweaks...
 1. Download and install:
     ```bash
         curl https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered --output noderedinstaller.sh
