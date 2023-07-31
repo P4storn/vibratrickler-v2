@@ -55,24 +55,33 @@ Green/white wire from wheatstone bridge load cell beam will depend on type and h
     - SCK --> RPi pin 31
     - VCC --> breadboard 5V
 
-# Import and test HX711 A/D conversion
+# HX711 A/D conversion
 Creds to Gandalf15 for the Hx711 library at https://github.com/gandalf15/HX711. More examplesfrom him [here](https://github.com/gandalf15/HX711/blob/master/python_examples/all_methods_example.py)
+
+## Install module
 1. `sudo apt-get install git -y` _Install Git_
 1. `pip3 install 'git+https://github.com/gandalf15/HX711.git#egg=HX711&subdirectory=HX711_Python3'` _Pip-install from Gandalf15's Git_
+
+## Try out module
 1. `python3` _Open a Python3 console_
     - `import RPi.GPIO as gpio`
-    - `from hx711 import HX711`
     - `gpio.setmode(gpio.BOARD)` _Use physical board pin numbers. Hint/try: `gpio readall` for a full conversion table_
+    - `from hx711 import HX711`
     - `hx = HX711(dout_pin=29, pd_sck_pin=31)`  _Create an hx711 object using the pins you connected before. Default settings include Channel=A and Gain=128/max, which suits this project just fine._
     - `hx.reset()` _False if OK (sic!). Hx711 board is working._
+    - `hx._read()` _Get one raw number._
     - `hx.zero(30)` _False if OK (sic!). Take the mean of 50 readings and use this as 0/floor - "Tare" on a kitchen scale._
     - `hx.get_data_mean(5)` _Try getting some data! (5) will retreive 5 readings and return their average. If 4 readings fail - this will throw 'statistics.StatisticsError'._
-    - Next, run a loop to get a bit closer to brass tacks:
+
+## Crunch the numbers
+Let's run a loop to get a feeling for our numbers...
+1. `python3` _Open a Python3 console_
+    - Print a lot of readings.
         ```python
         while True:
-            hx.get_data_mean(1)
+            hx.get_data_mean(1) #Request only one reading at a time, to avoid StatisticsError
         ```
-    - Or log a lot of readings to a csv-readable file:
+    - Or log a lot of readings to a csv-importable file:
         ```python
         from datetime import datetime
         file = open("hx711.txt", "a")
@@ -111,16 +120,60 @@ Based on https://nodered.org/docs/getting-started/raspberrypi, including some tw
 1. Autostart Node-red on next boot: `sudo systemctl enable nodered.service`
     - _Note: The parameter `--max-old-space-size=256` seems to be default for running as a service, at least after RPi install script._
 1. Reboot RPi (using the fancy safe-shutdown-button).
+1. You should now be able to browse to http://192.168.0.27/admin
+1. Read up on how to use Node-red. This is a good starting document: https://nodered.org/docs/tutorials/first-flow
+
+## hx read() from Node-red
+Now that youv'e done your home work on Node-red, you realize there is no native way to run Python. Well, tbh there are a few contributions like `node-red-contrib-python-function` and `node-red-contrib-python-function-ps` nodes, but they cannot keep a python object in mind. This is a dealbreaker, since we need to instantiate and call a HX711 Python object to get readings. My least bad solution is to create a HX711 start-script that can be run in a normal _Execute_ node.
+1. `nano /home/pi/hx-starter.py` > Put something like this in the file:
+    ```python
+    try:
+        import logging
+        import RPi.GPIO as gpio
+        gpio.setwarnings(False)
+        gpio.cleanup()
+        gpio.setmode(gpio.BOARD)
+        from hx711 import HX711
+        hx = HX711(dout_pin=29, pd_sck_pin=31)
+        hx.reset() #Not sure this is needed
+        while True: #Infinite loop...
+            hx_reading = hx._read()
+            if hx_reading == False: #Ignore bad readings
+                logging.warning('hx_reading was False')
+            else:
+                print(hx_reading) #Echo readings to Standard Out Stream. This will be picked up by Node-red shortly :)
+    except:
+        print('Python: except/stop')
+    finally:
+        print('Python: cleaning up GPIO pins...')
+        gpio.cleanup()
+    ```
+1. Browse to 192.168.0.27/admin
+    - Add an Execute node and have it call `python3 ~/hx-starter.py`
+    - Pipe the msg from the above node, to a Debug node. *You should now be able to view the HX711 readings in Node-red.*
 
 
-# If high SSH latency, try...
+*Time to dive in yourself!*
+
+
+
+
+
+# Nice to know...
+- NR: Get Linux PID from an Execute node, in a Status node: `$number($split(status.text, ':')[1])`
+- NR: Show two decimal places on a Dashboard item: `%%`
+- NR Smooth nodes
+- pip3 installs, and Python3 loads user modules from `~/.local/lib/python3.9/site-packages/*.py`
+- Reload a module without exiting Python3: `import importlib` > `importlib.reload(myModule)`
+
+## If high SSH latency to RPi, try...
 1. `sudo nano /etc/ssh/sshd_config`. Uncomment and set the parameters below:
     - `UseDNS` no
     - `ClientAliveInterval` 3
     - `ClientAliveCountMax` 10
 1. `sudo reboot` _This will of course close your current connection._
 
-# Set up an SMB share to share files with Windows machine
+## Set up an SMB share to share files with Windows machine
 Not a prereq, but it will help a lot if your'e on a headless RPi0 (like me). Using SMB, we can transfer files and even edit them as a workspace in Visual Studio or other editors.
 1. Install Samba with `sudo apt-get install samba samba-common-bin -y` 
 1. Share /home/pi directory: Run `sudo nano /etc/samba/smb.conf` > Then add at the bottom:
@@ -138,4 +191,4 @@ Not a prereq, but it will help a lot if your'e on a headless RPi0 (like me). Usi
 1. Create an _SMB_ password for user pi: `sudo smbpasswd -a pi` 
 1. `sudo systemctl restart smbd.service`
 1. Note output of command `hostname`
-1. In Windows: `explorer.exe` > browse to `\\192.168.0.27`. When prompted, sign on using `hostname\pi`.
+1. In Windows: `explorer.exe` > browse to `\\192.168.0.27`. When prompted, sign on using `[hostname]\pi`.
